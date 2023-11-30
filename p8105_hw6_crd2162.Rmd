@@ -9,6 +9,7 @@ output: github_document
 library(tidyverse)
 library(viridis)
 library(modelr)
+set.seed(1)
 
 knitr::opts_chunk$set(
 	echo = TRUE,
@@ -169,6 +170,62 @@ bootstrap_results |>
   summarize(log_coef = log(estimate[term == "tmin"] * estimate[term== "prcp"]))
   
 bootstrap_df=
-  bind_cols(bootstrap_results, log_coef)
+  bind_cols(bootstrap_results, log_coef) |> 
+  unnest(rsqr) |> 
+  select(strap, .id, models, r.squared, est, log_coef)
+```
+
+As mentioned, any model that includes a negative coefficient for prcp or tmin will yield a "NaN" result when calculating the log of the product of coefficients. The chunk below calculates how many bootstrap samples produced NaN log estimates for this reason. Out of 5000 bootstrap samples, an astonishing 3361 samples produced NaN log estimates.
+```{r}
+bootstrap_df |> 
+  filter(log_coef == "NaN") |> 
+  count(log_coef)
+```
+
+I will now plot the distribution of r squared estimates for the bootstrap samples. The distribution of r squared estimates shows that most estimates are centered around 0.92. The distribution is slightly left skewed.
+
+```{r}
+bootstrap_df |> 
+  ggplot(aes(x = r.squared))+
+  geom_histogram()+
+  labs(
+    title = "Distribution of R-squared estimates",
+    x = "Estimates",
+    y = "Frequency"
+  )
+```
+
+
+Here is a distribution of the valid log estimates for the bootstrap samples. The distribution of log estimates shows that most estimates are centered around -6. The distribution of log estimates is left skewed as well, with a greater skew than the r squared estimates.
+
+```{r}
+bootstrap_df |> 
+  filter(log_coef != "NaN") |> 
+  ggplot(aes(x = log_coef))+
+  geom_histogram()+
+  labs(
+    title = "Distribution of Log(B1*B2) estimates",
+    x = "Estimates",
+    y = "Frequency"
+  )
+```
+
+Now we'll find the confidence interval for each estimate using the bootstrap samples:
+```{r}
+CI_rsqr = 
+  bootstrap_df |> 
+  summarize(
+    lower_bound = quantile(r.squared, 0.025),
+    upper_bound = quantile(r.squared, 0.975)) |> 
+  print()
+
+
+CI_logcoef =
+  bootstrap_df |> 
+  filter(log_coef != "NaN") |> 
+  summarize(
+    lower_bound = quantile(log_coef, 0.025),
+    upper_bound = quantile(log_coef, 0.975)) |> 
+  print()
 ```
 
