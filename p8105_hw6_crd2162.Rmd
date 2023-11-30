@@ -107,7 +107,7 @@ model_results |>
 
 
 The following chunk imports weather data from NOAA
-```{r}
+```{r import_weather}
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -121,5 +121,39 @@ weather_df =
   select(name, id, everything())
 ```
 
+Let's create a linear model for maximum temperature (`tmax`) with minimum temperature (`tmin`) and precipitation levels (`prcp`) as predictors.
 
+```{r lm_weather}
+lm_weather =
+  weather_df |> 
+  lm(tmax ~ tmin + prcp, data = _)
+```
+
+Then, we'll find the r squared and log(b1*b2) for the weather model. Note that because the coefficient for prcp is negative, the log of the product of coefficients produces an NA. The log estimates are then merged with the r.squared data.
+
+```{r}
+lm_weather_rsq=
+lm_weather |>
+  broom::glance() |> 
+  select(r.squared)
+
+lm_weather_est=
+  lm_weather |> 
+  broom::tidy() |> 
+  select(term, estimate) |> 
+  filter(term != "(Intercept)") |> 
+  mutate(log_coef = log(estimate[term == "tmin"] * estimate[term== "prcp"])) |> 
+  select(log_coef) |> 
+  slice(1)
+
+weather_results=
+bind_cols(lm_weather_rsq, lm_weather_est)
+
+```
+
+Now, we'll merge these dataframes.
+
+```{r}
+
+```
 
