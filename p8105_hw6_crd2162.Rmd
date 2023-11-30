@@ -229,3 +229,34 @@ CI_logcoef =
   print()
 ```
 
+
+## Problem 3: Birthweight data
+
+First, we'll import the birthweight data:
+
+```{r}
+bw_raw = 
+  read_csv("data/birthweight.csv")
+```
+
+Then, we'll tidy the data. The following data will be recoded to use actual values rather than dummy values: father’s race (1 = White, 2 = Black, 3 = Asian, 4 = Puerto Rican, 8 = Other, 9 = Unknown)
+
+```{r}
+bw_df = 
+  bw_df |> 
+  mutate(
+    frace = 
+      case_match(
+        frace,
+        "1" = "white",
+        "2" = "black",
+        "3" = "asian",
+        "4" = "puerto rican",
+        "8" = "other",
+        "9" = "unknown"
+      )
+  )
+
+## need to eliminate missing values recoded
+```
+
