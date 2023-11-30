@@ -142,18 +142,33 @@ lm_weather_est=
   broom::tidy() |> 
   select(term, estimate) |> 
   filter(term != "(Intercept)") |> 
-  mutate(log_coef = log(estimate[term == "tmin"] * estimate[term== "prcp"])) |> 
-  select(log_coef) |> 
-  slice(1)
+  summarize(log_coef = log(estimate[term == "tmin"] * estimate[term== "prcp"]))
+
 
 weather_results=
 bind_cols(lm_weather_rsq, lm_weather_est)
 
 ```
 
-Now, we'll merge these dataframes.
+
+Now let's create 5000 bootstrap samples. We'll use map to write linear models for each bootstrap sample and produce r-squared and coefficients for each model. This produces a dataframe containing a dataframe for each bootstrap sample, a dataframe of models for each sample, a dataframe containing the r-squared, and a dataframe containing the estimates. We'll then unnest the estimate dataframe to calculate the log of the product of coefficients for each model. We'll then merge these datasets.
 
 ```{r}
-
+bootstrap_results=
+  weather_df |> 
+  modelr::bootstrap(n = 5000) |> 
+  mutate(
+    models = map(strap, \(df) lm(tmax ~ tmin + prcp, data = df)),
+    rsqr = map(models, broom::glance),
+    est = map (models, broom::tidy)
+  )
+ 
+log_coef =
+bootstrap_results |> 
+ unnest(est) |> 
+  summarize(log_coef = log(estimate[term == "tmin"] * estimate[term== "prcp"]))
+  
+bootstrap_df=
+  bind_cols(bootstrap_results, log_coef)
 ```
 
