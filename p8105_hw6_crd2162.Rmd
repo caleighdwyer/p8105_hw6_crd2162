@@ -277,9 +277,8 @@ bw_df =
       "8" = "other",
       "9" = "unknown"
     )
-  )
+  ) |> 
+  filter(frace != "unknown", mrace!= "unknown")
 
-
-## need to eliminate missing values recoded
 ```
 
