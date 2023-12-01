@@ -282,3 +282,39 @@ bw_df =
 
 ```
 
+I will now use stepwise model building to construct a model that predicts birthweight. I first create an input model 0 that includes all the variables in our data set as predictors of bwt. Then, I'll use the step function to conduct the stepwise modeling. Then, I select the model with the lowest AIC from the stepwise output and name it bw_step.
+
+```{r}
+model_0=
+  bw_df |> 
+  lm(bwt ~ babysex + bhead + blength + delwt + fincome + frace + gaweeks + malform + menarche + mheight + momage + mrace + parity + pnumlbw + pnumsga + ppbmi + ppwt + smoken + wtgain, data = _) |> 
+  step()
+
+bw_step = 
+  bw_df |> 
+  lm(bwt ~ babysex + bhead + blength + delwt + fincome + gaweeks + 
+    mheight + mrace + parity + ppwt + smoken, data = _)
+```
+
+Then, I'll plot the residuals from the bw_step model against the fitted values. Most of the points are centered and equally distributed around 0, indicating good model fit. However, there are some outliers curving up on the upper left portion of the plot. 
+
+```{r}
+plot_bw = 
+  bw_df |> 
+  add_predictions(bw_step) |> 
+  add_residuals(bw_step) |> 
+  select(pred, resid)
+
+plot_bw |> 
+  ggplot(aes(pred, resid))+
+  geom_point()+
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    title = "Residuals vs Fitted Values",
+    x = "Fitted Values",
+    y = "Residuals"
+  )
+```
+
+
+Now, we'll compare this model against two other models.
