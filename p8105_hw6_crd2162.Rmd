@@ -242,7 +242,7 @@ Then, we'll tidy the data. The following data will be recoded to use actual valu
 
 ```{r tidy_bw}
 bw_df = 
-  bw_df |> 
+  bw_raw |> 
   mutate(
     babysex =
       recode(
@@ -316,7 +316,7 @@ plot_bw |>
 ```
 
 
-Now, we'll compare this model against two other models, which are defined below. The three models are compiled in a list.
+Now, we'll compare this model against two other models, which are defined below. 
 
 ```{r new_models}
 model_1 =
@@ -361,6 +361,11 @@ cv_df |>
     values_to = "rmse",
     names_prefix = "rmse_") |> 
   mutate(model = fct_inorder(model)) |> 
-  ggplot(aes(x = model, y = rmse)) + geom_violin()
+  ggplot(aes(x = model, y = rmse)) + geom_violin()+
+  labs(
+    title = "RMSE distribution by model",
+    x = "Model",
+    y = "RMSE"
+  )
 ```
 
