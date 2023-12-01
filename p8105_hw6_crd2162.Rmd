@@ -132,7 +132,7 @@ lm_weather =
 
 Then, we'll find the r squared and log(b1*b2) for the weather model. Note that because the coefficient for prcp is negative, the log of the product of coefficients produces an NA. The log estimates are then merged with the r.squared data.
 
-```{r}
+```{r weather_est}
 lm_weather_rsq=
 lm_weather |>
   broom::glance() |> 
@@ -154,7 +154,7 @@ bind_cols(lm_weather_rsq, lm_weather_est)
 
 Now let's create 5000 bootstrap samples. We'll use map to write linear models for each bootstrap sample and produce r-squared and coefficients for each model. This produces a dataframe containing a dataframe for each bootstrap sample, a dataframe of models for each sample, a dataframe containing the r-squared, and a dataframe containing the estimates. We'll then unnest the estimate dataframe to calculate the log of the product of coefficients for each model. We'll then merge these datasets.
 
-```{r}
+```{r create_boot}
 bootstrap_results=
   weather_df |> 
   modelr::bootstrap(n = 5000) |> 
@@ -176,7 +176,7 @@ bootstrap_df=
 ```
 
 As mentioned, any model that includes a negative coefficient for prcp or tmin will yield a "NaN" result when calculating the log of the product of coefficients. The chunk below calculates how many bootstrap samples produced NaN log estimates for this reason. Out of 5000 bootstrap samples, an astonishing 3361 samples produced NaN log estimates.
-```{r}
+```{r count_na}
 bootstrap_df |> 
   filter(log_coef == "NaN") |> 
   count(log_coef)
@@ -184,7 +184,7 @@ bootstrap_df |>
 
 I will now plot the distribution of r squared estimates for the bootstrap samples. The distribution of r squared estimates shows that most estimates are centered around 0.92. The distribution is slightly left skewed.
 
-```{r}
+```{r plot_rsqr}
 bootstrap_df |> 
   ggplot(aes(x = r.squared))+
   geom_histogram()+
@@ -195,10 +195,9 @@ bootstrap_df |>
   )
 ```
 
-
 Here is a distribution of the valid log estimates for the bootstrap samples. The distribution of log estimates shows that most estimates are centered around -6. The distribution of log estimates is left skewed as well, with a greater skew than the r squared estimates.
 
-```{r}
+```{r plot_log}
 bootstrap_df |> 
   filter(log_coef != "NaN") |> 
   ggplot(aes(x = log_coef))+
@@ -211,7 +210,7 @@ bootstrap_df |>
 ```
 
 Now we'll find the confidence interval for each estimate using the bootstrap samples:
-```{r}
+```{r CI_boot}
 CI_rsqr = 
   bootstrap_df |> 
   summarize(
@@ -234,14 +233,14 @@ CI_logcoef =
 
 First, we'll import the birthweight data:
 
-```{r}
+```{r import_bw}
 bw_raw = 
   read_csv("data/birthweight.csv")
 ```
 
 Then, we'll tidy the data. The following data will be recoded to use actual values rather than dummy values: babysex, frace, malform, and mrace.
 
-```{r}
+```{r tidy_bw}
 bw_df = 
   bw_df |> 
   mutate(
@@ -284,7 +283,7 @@ bw_df =
 
 I will now use stepwise model building to construct a model that predicts birthweight. I first create an input model 0 that includes all the variables in our data set as predictors of bwt. Then, I'll use the step function to conduct the stepwise modeling. Then, I select the model with the lowest AIC from the stepwise output and name it bw_step.
 
-```{r}
+```{r step_modeling}
 model_0=
   bw_df |> 
   lm(bwt ~ babysex + bhead + blength + delwt + fincome + frace + gaweeks + malform + menarche + mheight + momage + mrace + parity + pnumlbw + pnumsga + ppbmi + ppwt + smoken + wtgain, data = _) |> 
@@ -298,7 +297,7 @@ bw_step =
 
 Then, I'll plot the residuals from the bw_step model against the fitted values. Most of the points are centered and equally distributed around 0, indicating good model fit. However, there are some outliers curving up on the upper left portion of the plot. 
 
-```{r}
+```{r res_plot}
 plot_bw = 
   bw_df |> 
   add_predictions(bw_step) |> 
@@ -319,7 +318,7 @@ plot_bw |>
 
 Now, we'll compare this model against two other models, which are defined below. The three models are compiled in a list.
 
-```{r}
+```{r new_models}
 model_1 =
   bw_df |> 
   lm(bwt ~ blength + gaweeks, data = _)
@@ -328,18 +327,16 @@ model_2 =
   bw_df |> 
   lm(bwt ~ (bhead + blength + babysex)^3, data = _)
 
-models_bw =
-  list(bw_step, model_1, model_2)
 ```
 
 To compare the models, we'll create a training/testing split multiple times on the bw_df:
-```{r}
+```{r cv_data}
 cv_df = 
   crossv_mc(bw_df, 100)
 ```
 
 Now, we'll write a function to fit each model to training data, predict on test data, and calculate RMSE. This will create a dataframe called cv_df that contains the RMSE for each model.
-```{r}
+```{r cv_map}
 cv_df = 
   cv_df |> 
   mutate(
@@ -353,9 +350,9 @@ cv_df =
   select(.id, rmse_bw, rmse_1, rmse_2)
 ```
 
-Now, we'll plot and compare the RMSE for each model on each iteration of cross validation.
+Now, we'll plot and compare the RMSE for each model on each iteration of cross validation. The violin plot shows the distribution of RMSE by model. This demonstrates that the bw_step model created using stepwise methods had the greatest predictive accuracy, as the RMSE values are tightly distributed and lower than the other models. Model 1 is the worst model as it has the highest RMSEs. The predictive accuracy of Model 2 is better than Model 1, but still not as good as bw_step.
 
-```{r}
+```{r RMSE_plot}
 cv_df |> 
   select(starts_with("rmse")) |> 
   pivot_longer(
