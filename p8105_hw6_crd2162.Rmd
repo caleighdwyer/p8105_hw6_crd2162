@@ -317,4 +317,53 @@ plot_bw |>
 ```
 
 
-Now, we'll compare this model against two other models.
+Now, we'll compare this model against two other models, which are defined below. The three models are compiled in a list.
+
+```{r}
+model_1 =
+  bw_df |> 
+  lm(bwt ~ blength + gaweeks, data = _)
+
+model_2 = 
+  bw_df |> 
+  lm(bwt ~ (bhead + blength + babysex)^3, data = _)
+
+models_bw =
+  list(bw_step, model_1, model_2)
+```
+
+To compare the models, we'll create a training/testing split multiple times on the bw_df:
+```{r}
+cv_df = 
+  crossv_mc(bw_df, 100)
+```
+
+Now, we'll write a function to fit each model to training data, predict on test data, and calculate RMSE. This will create a dataframe called cv_df that contains the RMSE for each model.
+```{r}
+cv_df = 
+  cv_df |> 
+  mutate(
+    bw_step  = map(train, \(df) lm(bwt ~ babysex + bhead + blength + delwt + fincome + gaweeks + mheight + mrace + parity + ppwt + smoken, data = df)),
+    model_1  = map(train, \(df) lm(bwt ~ blength + gaweeks, data = df)),
+    model_2  = map(train, \(df) lm(bwt ~ (bhead + blength + babysex)^3, data = df))) |> 
+  mutate(
+    rmse_bw = map2_dbl(bw_step, test, \(mod, df) rmse(model = mod, data = df)),
+    rmse_1 = map2_dbl(model_1, test, \(mod, df) rmse(model = mod, data = df)),
+    rmse_2 = map2_dbl(model_2, test, \(mod, df) rmse(model = mod, data = df))) |> 
+  select(.id, rmse_bw, rmse_1, rmse_2)
+```
+
+Now, we'll plot and compare the RMSE for each model on each iteration of cross validation.
+
+```{r}
+cv_df |> 
+  select(starts_with("rmse")) |> 
+  pivot_longer(
+    everything(),
+    names_to = "model",
+    values_to = "rmse",
+    names_prefix = "rmse_") |> 
+  mutate(model = fct_inorder(model)) |> 
+  ggplot(aes(x = model, y = rmse)) + geom_violin()
+```
+
